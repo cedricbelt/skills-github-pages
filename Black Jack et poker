@@ -1,0 +1,402 @@
+<!doctype html>
+
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Poker & Blackjack — Multijoueur (Discord Backend)</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#11183a; --muted:#8ca2ff; --accent:#7b5cff; --accent2:#38d39f; --danger:#ff5c7a; --ok:#48e1a8;
+      --text:#eaf0ff; --sub:#b9c6ff; --gold:#f7d774;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial; background: radial-gradient(1200px 800px at 10% -10%, #1b2147 0%, transparent 70%), radial-gradient(1000px 600px at 110% 10%, #14234a 0%, transparent 70%), var(--bg); color:var(--text)}
+    a{color:var(--muted)}
+    .container{max-width:1100px;margin:0 auto;padding:20px}
+    .app{display:grid;grid-template-columns:320px 1fr;gap:16px}
+    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+    .title{display:flex;gap:12px;align-items:center}
+    .badge{padding:4px 8px;border-radius:999px;background:linear-gradient(135deg,var(--accent),#9d7bff);color:white;font-weight:600;font-size:12px;box-shadow:0 6px 20px rgba(123,92,255,.4)}.panel{background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border:1px solid rgba(140,162,255,.2); border-radius:18px; padding:16px; backdrop-filter: blur(10px); box-shadow:0 10px 30px rgba(0,0,0,.25)}
+
+.sidebar .section{margin-bottom:16px}
+.row{display:flex;gap:8px;align-items:center}
+.btn{cursor:pointer; user-select:none; border:none; padding:10px 14px; border-radius:14px; font-weight:700; letter-spacing:.2px; transition:.2s transform, .2s opacity, .2s box-shadow; background:linear-gradient(135deg,var(--accent),#9a7bff); color:white; box-shadow:0 8px 22px rgba(123,92,255,.45)}
+.btn:active{transform:translateY(1px)}
+.btn.secondary{background:linear-gradient(135deg,#1e2c5a,#15224a); color:var(--sub); box-shadow:none; border:1px solid rgba(140,162,255,.2)}
+.btn.ghost{background:transparent;border:1px dashed rgba(140,162,255,.4);color:var(--sub)}
+.btn.danger{background:linear-gradient(135deg,#ff6b88,#ff3b6e); box-shadow:0 8px 22px rgba(255,92,122,.35)}
+
+.segmented{display:flex;background:#0f1533;border:1px solid rgba(140,162,255,.25);padding:6px;border-radius:14px}
+.segmented button{flex:1} .segmented .active{background:linear-gradient(135deg,var(--accent),#8b6bff); color:white}
+
+.input, select{width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(140,162,255,.25);background:#0f1533;color:var(--text)}
+label{font-size:12px;color:var(--sub);display:block;margin:6px 0}
+
+.log{height:160px; overflow:auto; background:#0a0f24; border-radius:12px; padding:10px; font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; border:1px solid rgba(140,162,255,.2)}
+
+.table{display:grid; grid-template-columns:repeat(4,1fr); gap:10px}
+.card{aspect-ratio:3/4;border-radius:12px;background:linear-gradient(160deg,#1a255a,#0f1636); border:1px solid rgba(140,162,255,.3); display:flex; align-items:center; justify-content:center; font-size:32px; font-weight:800; color:var(--gold); position:relative; overflow:hidden}
+.card.small{font-size:22px}
+.card::after{content:""; position:absolute; inset:0;background: radial-gradient(200px 120px at -10% -20%, rgba(255,255,255,.15), transparent 50%), radial-gradient(200px 120px at 120% 10%, rgba(255,255,255,.1), transparent 60%)}
+
+.tableArea{min-height:400px; border-radius:18px; border:1px solid rgba(140,162,255,.2); background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); padding:16px}
+.players{display:flex; gap:10px; flex-wrap:wrap}
+.player{flex:1 1 220px; min-width:220px; background:#0f1533; border:1px solid rgba(140,162,255,.2); border-radius:16px; padding:12px}
+.player .name{font-weight:800}
+.chips{font-size:12px;color:var(--sub)}
+.dealer{border-color:var(--accent2)}
+
+.center{display:flex; justify-content:center; align-items:center; gap:14px; margin:12px 0}
+.floating{position:fixed; right:16px; bottom:16px}
+.pulse{animation: pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+
+.toast{position:fixed; left:50%; transform:translateX(-50%); bottom:18px; background:#0f1533; border:1px solid rgba(140,162,255,.35); padding:10px 14px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.35); opacity:0; pointer-events:none; transition:.3s}
+.toast.show{opacity:1; bottom:28px}
+
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:6px;box-shadow:0 0 10px rgba(72,225,168,.8)}
+
+.glow{box-shadow:0 0 0 2px rgba(123,92,255,.35), 0 8px 24px rgba(123,92,255,.35)}
+.shimmer{position:relative; overflow:hidden}
+.shimmer::before{content:""; position:absolute; inset:-200%; background:linear-gradient(120deg, transparent 45%, rgba(255,255,255,.15) 50%, transparent 55%); animation:sh 2.2s infinite}
+@keyframes sh{100%{transform:translateX(50%) translateY(50%)}}
+
+.hidden{display:none}
+
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="title">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 3l2.09 6.26H21l-5.17 3.76L17.91 21 12 16.98 6.09 21l2.08-7.98L3 9.26h6.91L12 3z" fill="url(#g)"/><defs><linearGradient id="g" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse"><stop stop-color="#9a7bff"/><stop offset="1" stop-color="#38d39f"/></linearGradient></defs></svg>
+        <div>
+          <div style="font-weight:900;font-size:20px">Poker & Blackjack — Multijoueur</div>
+          <div style="font-size:12px;color:var(--sub)">Backend: Discord salon <strong>#1405087898390364282</strong> (proxy requis, voir commentaires dans le code)</div>
+        </div>
+      </div>
+      <span class="badge">Alpha</span>
+    </header><div class="app">
+  <aside class="sidebar panel">
+    <div class="section">
+      <label>Choisis un jeu</label>
+      <div class="segmented" id="gameSwitch">
+        <button data-game="blackjack" class="btn secondary active">Blackjack</button>
+        <button data-game="poker" class="btn secondary">Poker</button>
+      </div>
+    </div>
+    <div class="section">
+      <label>Pseudo</label>
+      <input class="input" id="nick" placeholder="Ton pseudo" maxlength="16" />
+    </div>
+    <div class="section">
+      <label>Mode de connexion</label>
+      <select id="transport" class="input">
+        <option value="LOCAL">LOCAL (test hors-ligne)</option>
+        <option value="DISCORD_PROXY">DISCORD_PROXY (prod via bot)</option>
+      </select>
+      <small style="color:var(--sub);display:block;margin-top:6px">Pour DISCORD_PROXY, configure un relais côté serveur (voir commentaire <code>RELAY SETUP</code> en bas).</small>
+    </div>
+    <div class="section row">
+      <button id="btnFindMatch" class="btn glow pulse" style="flex:1">Trouver une partie</button>
+      <button id="btnLeave" class="btn secondary" title="Quitter la file / la table">Quitter</button>
+    </div>
+    <div class="section">
+      <label>Logs</label>
+      <div class="log" id="log"></div>
+    </div>
+    <div class="section">
+      <label>Raccourcis</label>
+      <div class="row">
+        <button class="btn ghost" id="demo2p">Demo 2 joueurs</button>
+        <button class="btn ghost" id="clearLocal">Reset local</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="panel">
+    <div class="tableArea" id="tableArea">
+      <div class="center">
+        <div class="badge">Salle d'attente</div>
+      </div>
+      <div class="center">
+        <button class="btn" id="btnReady">Prêt</button>
+        <div id="status"><span class="dot"></span> En ligne</div>
+      </div>
+      <div class="players" id="players"></div>
+
+      <div id="gameBlackjack" class="hidden">
+        <h3>Blackjack</h3>
+        <div class="center">
+          <button class="btn" id="bjHit">Tirer</button>
+          <button class="btn secondary" id="bjStand">Rester</button>
+          <button class="btn danger" id="bjReset">Rejouer</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr; gap:14px;align-items:start">
+          <div>
+            <div style="font-weight:800;margin:8px 0">Main du croupier</div>
+            <div id="dealerCards" class="table"></div>
+            <div id="dealerScore" style="margin-top:8px;color:var(--sub)"></div>
+          </div>
+          <div>
+            <div style="font-weight:800;margin:8px 0">Ta main</div>
+            <div id="playerCards" class="table"></div>
+            <div id="playerScore" style="margin-top:8px;color:var(--sub)"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="gamePoker" class="hidden">
+        <h3>Poker — 5 cartes (simplifié)</h3>
+        <div class="center">
+          <button class="btn" id="pkDeal">Distribuer</button>
+          <button class="btn secondary" id="pkCompare">Comparer</button>
+          <button class="btn danger" id="pkReset">Rejouer</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr; gap:14px;align-items:start">
+          <div>
+            <div style="font-weight:800;margin:8px 0">Main Adverse</div>
+            <div id="oppCards" class="table"></div>
+            <div id="oppRank" style="margin-top:8px;color:var(--sub)"></div>
+          </div>
+          <div>
+            <div style="font-weight:800;margin:8px 0">Ta Main</div>
+            <div id="myCards" class="table"></div>
+            <div id="myRank" style="margin-top:8px;color:var(--sub)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+  </div>  <div class="toast" id="toast"></div>  <script>
+  /*
+   * ===============================
+   *  RELAY SETUP (IMPORTANT)
+   * ===============================
+   * Ce front utilise Discord comme "serveur" via un RELAIS sécurisé (proxy) côté serveur.
+   * Pourquoi ? Le navigateur ne peut pas utiliser directement le token du bot Discord (sécurité/CORS). 
+   *
+   * 👉 À faire par toi (ou je te fournis un mini serveur Node) :
+   *   - Créer un petit serveur (Node/Express, Cloudflare Worker, etc.) qui expose deux endpoints:
+   *     POST /relay  {channelId, type, payload}   -> le serveur poste sur Discord (via bot) dans le salon 1405087898390364282
+   *     GET  /relay?since=<snowflake>            -> le serveur lit les messages récents du salon et renvoie du JSON
+   *   - Le token du bot est stocké sur ce serveur seulement (jamais dans le front!).
+   *   - Dans le code ci-dessous, mets RELAY_URL = "https://ton-domaine/relay".
+   *
+   * Le format de message Discord (contenu JSON en texte) :
+   *   { kind:"matchmaking|state|chat", room:"<id>", game:"blackjack|poker", from:"pseudo", payload:{...}, ts:<Date.now()> }
+   */
+
+  const CHANNEL_ID = "1405087898390364282";
+  const RELAY_URL = ""; // ← Renseigne l'URL de ton relais (ex: "https://api.mondomaine.com/relay"). Laisse vide pour mode LOCAL.
+
+  // ======== Utilitaires UI ========
+  const $ = (sel)=>document.querySelector(sel);
+  const $$ = (sel)=>Array.from(document.querySelectorAll(sel));
+  function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1800); }
+  function log(msg){ const el=$('#log'); const time=new Date().toLocaleTimeString(); el.innerHTML += `<div>[${time}] ${msg}</div>`; el.scrollTop=el.scrollHeight; }
+  function setGame(game){ $$('#gameSwitch .btn').forEach(b=>b.classList.toggle('active', b.dataset.game===game));
+    $('#gameBlackjack').classList.toggle('hidden', game!=="blackjack");
+    $('#gamePoker').classList.toggle('hidden', game!=="poker");
+    state.game = game; saveLocal(); }
+
+  // ======== Transport (LOCAL ou DISCORD_PROXY) ========
+  const Transport = {
+    mode: 'LOCAL',
+    since: null,
+    localBus: [], // mémoire partagée locale (pour tests)
+    start(){ this.mode = $('#transport').value; if(this.mode==='DISCORD_PROXY' && !RELAY_URL){ toast('Configure RELAY_URL !'); log('RELAY_URL manquant, bascule en LOCAL'); this.mode='LOCAL'; $('#transport').value='LOCAL'; }
+      if(this.mode==='DISCORD_PROXY'){ this.loop(); }
+    },
+    async loop(){ // long-poll pour récupérer les messages
+      while(this.mode==='DISCORD_PROXY'){
+        try{
+          const url = RELAY_URL + (this.since? `?since=${this.since}`: '');
+          const r = await fetch(url);
+          const data = await r.json();
+          if(Array.isArray(data)){
+            data.forEach(msg=>{ this.since = msg.id; onRelayMessage(JSON.parse(msg.content)); });
+          }
+        }catch(e){ log('Relay GET erreur: '+e.message); await new Promise(r=>setTimeout(r,1500)); }
+      }
+    },
+    async send(kind, payload){
+      const msg = { kind, room: state.roomId, game: state.game, from: state.nick, payload, ts: Date.now() };
+      if(this.mode==='LOCAL'){
+        // Simule bus local
+        this.localBus.push(msg); onRelayMessage(msg);
+      }else{
+        try{
+          await fetch(RELAY_URL, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({channelId:CHANNEL_ID, content: JSON.stringify(msg)}) });
+        }catch(e){ log('Relay POST erreur: '+e.message); }
+      }
+    }
+  };
+
+  // ======== State global ========
+  const state = {
+    nick: localStorage.getItem('nick') || `Joueur${Math.floor(Math.random()*1000)}`,
+    game: 'blackjack',
+    roomId: null,
+    players: {}, // map pseudo -> info
+    youReady: false,
+    bj: { deck: [], dealer: [], player: [], finished:false },
+    pk: { deck: [], me: [], opp: [], ranked:false }
+  };
+  $('#nick').value = state.nick;
+
+  function saveLocal(){ localStorage.setItem('nick', state.nick); }
+
+  // ======== Matchmaking simple ========
+  function createRoomId(){ return Math.random().toString(36).slice(2,8); }
+  async function findMatch(){
+    if(!state.nick.trim()){ toast('Choisis un pseudo'); return; }
+    state.roomId = createRoomId();
+    state.players = {}; state.youReady=false; renderPlayers();
+    log(`Recherche de partie (${state.game})… room=${state.roomId}`);
+    await Transport.send('matchmaking', { action:'join', game: state.game });
+  }
+  async function leave(){ if(!state.roomId) return; await Transport.send('matchmaking',{action:'leave'}); state.roomId=null; state.players={}; renderPlayers(); toast('Quitté.'); }
+
+  // ======== Gestion messages du relais ========
+  function onRelayMessage(msg){
+    if(!msg || msg.game!==state.game) return; // ignorer autre jeu
+    if(!msg.room) return; // message non routé
+
+    switch(msg.kind){
+      case 'matchmaking':{
+        if(!state.roomId) state.roomId = msg.room;
+        if(msg.payload.action==='join'){
+          state.players[msg.from] = {ready:false};
+          log(`${msg.from} a rejoint la table ${msg.room}`);
+          broadcastRoster();
+        }
+        if(msg.payload.action==='leave'){
+          delete state.players[msg.from]; log(`${msg.from} a quitté la table.`); broadcastRoster();
+        }
+        break;
+      }
+      case 'state':{
+        const p = msg.payload;
+        if(p.type==='roster'){ state.players = p.players; renderPlayers(); }
+        if(p.type==='ready'){ if(!state.players[msg.from]) state.players[msg.from]={}; state.players[msg.from].ready=p.ready; renderPlayers(); tryStartGame(); }
+        if(p.type==='bj:deal'){ state.bj = p.bj; renderBlackjack(); }
+        if(p.type==='bj:action'){ state.bj = p.bj; renderBlackjack(); }
+        if(p.type==='pk:deal'){ state.pk = p.pk; renderPoker(); }
+        if(p.type==='pk:rank'){ state.pk = p.pk; renderPoker(); }
+        break;
+      }
+      case 'chat':{
+        // non utilisé ici
+        break;
+      }
+    }
+  }
+
+  function broadcastRoster(){ Transport.send('state', {type:'roster', players: state.players}); }
+
+  // ======== UI joueurs ========
+  function renderPlayers(){
+    const wrap = $('#players');
+    wrap.innerHTML = '';
+    const entries = Object.entries(state.players);
+    if(!entries.length){ wrap.innerHTML = '<div style="opacity:.7">Aucun joueur pour le moment… Trouve une partie pour créer/joindre une table.</div>'; return; }
+    for(const [name, info] of entries){
+      const div = document.createElement('div'); div.className = 'player'+(info.dealer? ' dealer shimmer':'');
+      div.innerHTML = `<div class="row" style="justify-content:space-between"><div class="name">${name}</div><div class="chips">${info.ready? '✅ prêt':'⏳ attend'}</div></div>`;
+      wrap.appendChild(div);
+    }
+  }
+
+  // ======== READY / démarrage ========
+  $('#btnReady').onclick = ()=>{ state.youReady = !state.youReady; Transport.send('state',{type:'ready', ready: state.youReady}); toast(state.youReady? 'Tu es prêt':'Tu n\'es plus prêt'); };
+  function tryStartGame(){
+    const allReady = Object.values(state.players).length>=2 && Object.values(state.players).every(p=>p.ready);
+    if(allReady){
+      if(state.game==='blackjack') newBlackjack(); else newPoker();
+    }
+  }
+
+  // ======== BLACKJACK ========
+  function newDeck(){
+    const suits = ['♠','♥','♦','♣']; const ranks=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+    const d=[]; for(const s of suits) for(const r of ranks) d.push({r,s});
+    for(let i=d.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [d[i],d[j]]=[d[j],d[i]]; }
+    return d;
+  }
+  function bjScore(hand){
+    let total=0, aces=0; for(const c of hand){ if(c.r==='A'){ total+=11; aces++; } else if(['K','Q','J'].includes(c.r)){ total+=10; } else total+=parseInt(c.r); }
+    while(total>21 && aces>0){ total-=10; aces--; } return total;
+  }
+  function newBlackjack(){
+    state.bj = { deck:newDeck(), dealer:[], player:[], finished:false };
+    state.bj.player.push(state.bj.deck.pop(), state.bj.deck.pop());
+    state.bj.dealer.push(state.bj.deck.pop(), state.bj.deck.pop());
+    Transport.send('state',{type:'bj:deal', bj:state.bj});
+  }
+  function renderBlackjack(){ setGame('blackjack'); $('#gameBlackjack').classList.remove('hidden');
+    const d = state.bj; const pc=$('#playerCards'), dc=$('#dealerCards'); pc.innerHTML=''; dc.innerHTML='';
+    d.player.forEach(c=>pc.appendChild(renderCard(c))); d.dealer.forEach(c=>dc.appendChild(renderCard(c)));
+    $('#playerScore').textContent = 'Score: '+bjScore(d.player);
+    $('#dealerScore').textContent = d.finished? ('Score: '+bjScore(d.dealer)) : 'Score: ?';
+  }
+  function renderCard(c){ const el=document.createElement('div'); el.className='card'; el.textContent = c.r + c.s; return el; }
+  function bjHit(){ if(state.bj.finished) return; state.bj.player.push(state.bj.deck.pop()); const ps=bjScore(state.bj.player); if(ps>21) bjStand(); Transport.send('state',{type:'bj:action', bj:state.bj}); }
+  function bjStand(){ const d=state.bj; let ds=bjScore(d.dealer); while(ds<17){ d.dealer.push(d.deck.pop()); ds=bjScore(d.dealer); } d.finished=true; Transport.send('state',{type:'bj:action', bj:d}); const ps=bjScore(d.player); const result = (ps>21)?'Perdu (tu as dépassé)': (ds>21)?'Gagné (croupier dépasse)': (ps>ds)?'Gagné':'Perdu/Égalité'; toast('Blackjack: '+result); }
+
+  $('#bjHit').onclick = bjHit; $('#bjStand').onclick = bjStand; $('#bjReset').onclick = ()=>newBlackjack();
+
+  // ======== POKER (5 cartes simplifié) ========
+  function newPoker(){ state.pk = { deck:newDeck(), me:[], opp:[], ranked:false }; for(let i=0;i<5;i++){ state.pk.me.push(state.pk.deck.pop()); state.pk.opp.push(state.pk.deck.pop()); } Transport.send('state',{type:'pk:deal', pk:state.pk}); }
+  function renderPoker(){ setGame('poker'); const mc=$('#myCards'), oc=$('#oppCards'); mc.innerHTML=''; oc.innerHTML=''; state.pk.me.forEach(c=>mc.appendChild(renderCardSmall(c))); state.pk.opp.forEach(c=>oc.appendChild(renderCardSmall(c))); const r1 = rankHand(state.pk.me), r2=rankHand(state.pk.opp); $('#myRank').textContent = 'Main: '+r1.name; $('#oppRank').textContent = state.pk.ranked? ('Main: '+r2.name): 'Main: ?'; }
+  function renderCardSmall(c){ const el=document.createElement('div'); el.className='card small'; el.textContent=c.r+c.s; return el; }
+  function rankHand(hand){ // évalue une main de 5 cartes
+    const vals = hand.map(c=>"A23456789TJQK".indexOf(c.r.replace('10','T')));
+    const suits = hand.map(c=>c.s);
+    const counts={}; for(const v of vals){ counts[v]=(counts[v]||0)+1; }
+    const groups = Object.values(counts).sort((a,b)=>b-a); // e.g., [3,2]
+    const isFlush = suits.every(s=>s===suits[0]);
+    const sorted = [...vals].sort((a,b)=>a-b);
+    // gérer l'as bas pour la quinte A-2-3-4-5
+    let isStraight = sorted.every((v,i)=> i===0 || sorted[i]-sorted[i-1]===1) || (sorted.join(',')==='0,1,2,3,12');
+    const high = Math.max(...vals);
+    const score = ()=>{
+      if(isStraight && isFlush) return [8, high]; // quinte flush
+      if(groups[0]===4) return [7, high]; // carré
+      if(groups[0]===3 && groups[1]===2) return [6, high]; // full
+      if(isFlush) return [5, high];
+      if(isStraight) return [4, high];
+      if(groups[0]===3) return [3, high];
+      if(groups[0]===2 && groups[1]===2) return [2, high];
+      if(groups[0]===2) return [1, high];
+      return [0, high];
+    };
+    const sc = score();
+    const names=['Hauteur','Paire','Deux paires','Brelan','Quinte','Couleur','Full','Carré','Quinte flush'];
+    return { score: sc[0], name: names[sc[0]], high: sc[1] };
+  }
+  function compareHands(){ const r1=rankHand(state.pk.me), r2=rankHand(state.pk.opp); state.pk.ranked=true; Transport.send('state',{type:'pk:rank', pk:state.pk}); const res = (r1.score!==r2.score)? (r1.score>r2.score? 'Tu gagnes':'Tu perds') : (r1.high>r2.high? 'Tu gagnes':'Perdu/Égalité'); toast('Poker: '+res); }
+
+  $('#pkDeal').onclick = ()=>newPoker(); $('#pkCompare').onclick = compareHands; $('#pkReset').onclick = ()=>newPoker();
+
+  // ======== Événements UI ========
+  $('#btnFindMatch').onclick = findMatch; $('#btnLeave').onclick = leave; $('#nick').oninput = (e)=>{ state.nick = e.target.value.trim(); saveLocal(); };
+  $$('#gameSwitch button').forEach(b=> b.onclick = ()=> setGame(b.dataset.game));
+  $('#transport').onchange = ()=> Transport.start();
+
+  // Démos/Utilities
+  $('#demo2p').onclick = ()=>{ // simule deux joueurs en LOCAL
+    if(Transport.mode!=='LOCAL'){ toast('Passe en mode LOCAL'); return; }
+    const other = 'Adversaire'; state.players[state.nick]={ready:false}; state.players[other]={ready:false}; renderPlayers(); toast('2 joueurs simulés');
+  };
+  $('#clearLocal').onclick = ()=>{ Transport.localBus=[]; localStorage.clear(); location.reload(); };
+
+  // Auto-start
+  setGame('blackjack'); renderPlayers(); Transport.start();
+
+  </script></body>
+</html>
